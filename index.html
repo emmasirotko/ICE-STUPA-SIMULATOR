@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICE STUPA — ARCHITECTURAL PREDICTIVE SIMULATOR</title>
+    <!-- Three.js and OrbitControls CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+        :root {
+            --bg-pure: #0a0a0c;
+            --ink-pure: #ffffff;
+            --ink-subtle: #a0a0a0;
+            --border-light: #222226;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-pure);
+            color: var(--ink-pure);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-weight: 300;
+            font-size: 11px;
+            line-height: 1.4;
+            letter-spacing: 0.03em;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* HEADER */
+        header {
+            padding: 12px 24px;
+            border-bottom: 2px solid var(--ink-pure);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            background: var(--bg-pure);
+            z-index: 100;
+        }
+
+        .header-title h1 {
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: #ffffff;
+        }
+
+        .header-title p {
+            font-size: 9.5px;
+            font-weight: 300;
+            color: #cccccc;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 2px;
+        }
+
+        /* APP LAYOUT */
+        .app-container {
+            display: grid;
+            grid-template-columns: 310px 1fr 320px;
+            flex: 1;
+            height: calc(100vh - 51px);
+        }
+
+        @media (max-width: 1100px) {
+            .app-container {
+                grid-template-columns: 280px 1fr;
+            }
+            .right-panel {
+                display: none;
+            }
+        }
+
+        .panel {
+            padding: 16px;
+            border-right: 2px solid var(--ink-pure);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: var(--bg-pure);
+        }
+
+        .right-panel {
+            border-right: none;
+            border-left: 2px solid var(--ink-pure);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--ink-pure);
+            padding-bottom: 4px;
+            margin-bottom: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 10.5px;
+            letter-spacing: 0.08em;
+            color: #ffffff;
+        }
+
+        /* WORLD MAP */
+        .map-wrapper {
+            width: 100%;
+            height: 160px;
+            border: 1px solid var(--ink-pure);
+            background: #0a0a0c;
+            position: relative;
+            margin-bottom: 6px;
+        }
+
+        canvas#mapCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: pointer;
+        }
+
+        select.site-select {
+            width: 100%;
+            padding: 6px 8px;
+            background: #141418;
+            border: 1px solid var(--ink-pure);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 11px;
+            font-weight: 300;
+            color: #ffffff;
+            cursor: pointer;
+            outline: none;
+            border-radius: 0;
+        }
+
+        /* CONTROLS */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #dddddd;
+        }
+
+        .control-label span.val {
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 3px;
+            background: #333338;
+            outline: none;
+            border: 1px solid var(--ink-pure);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: var(--ink-pure);
+            cursor: pointer;
+            border-radius: 0;
+        }
+
+        /* VIEWPORT */
+        .viewport-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            overflow: hidden;
+        }
+
+        canvas#simCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .viewport-tools {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            display: flex;
+            gap: 4px;
+            background: #0a0a0c;
+            padding: 3px;
+            border: 1px solid var(--ink-pure);
+            z-index: 10;
+        }
+
+        .btn-mini {
+            background: transparent;
+            border: 1px solid var(--ink-pure);
+            color: var(--ink-pure);
+            padding: 3px 7px;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 9.5px;
+            font-weight: 500;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .btn-mini:hover {
+            background: var(--ink-pure);
+            color: #000000;
+        }
+
+        .btn-capture {
+            background: #0088ff;
+            color: #ffffff;
+            border-color: #0088ff;
+            font-weight: 700;
+        }
+
+        .btn-capture:hover {
+            background: #0066cc;
+            color: #ffffff;
+        }
+
+        .viewport-status {
+            position: absolute;
+            bottom: 14px;
+            left: 14px;
+            font-size: 9px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            background: #0a0a0c;
+            color: #ffffff;
+            padding: 6px 10px;
+            border: 1px solid var(--ink-pure);
+            pointer-events: none;
+            line-height: 1.4;
+        }
+
+        .phase-indicator {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            font-size: 9.5px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            background: #ffffff;
+            color: #000000;
+            padding: 5px 8px;
+            border: 1px solid var(--ink-pure);
+            z-index: 10;
+            transition: background-color 0.3s ease;
+        }
+
+        /* TABLES & METRICS */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10.5px;
+            color: #dddddd;
+        }
+
+        .data-table tr {
+            border-bottom: 1px dashed #333338;
+        }
+
+        .data-table td {
+            padding: 5px 0;
+        }
+
+        .data-table td.val {
+            text-align: right;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .metric-card {
+            border: 1px solid var(--ink-pure);
+            padding: 9px 11px;
+            background: #141418;
+            color: #ffffff;
+        }
+
+        .metric-title {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 2px;
+            color: #aaaaaa;
+        }
+
+        .metric-val {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: #ffffff;
+        }
+
+        .divider {
+            border-top: 1px solid var(--ink-pure);
+            margin: 6px 0;
+        }
+
+        .formula-box {
+            font-family: 'Space Mono', monospace;
+            font-size: 9px;
+            background: #141418;
+            color: #ffffff;
+            padding: 7px 9px;
+            border-left: 2px solid var(--ink-pure);
+            line-height: 1.4;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">
+            <h1>ICE STUPA ARCHITECTURAL SIMULATOR</h1>
+            <p>PREDICTIVE THERMODYNAMIC & MORPHOLOGICAL ENGINE</p>
+        </div>
+    </header>
+
+    <div class="app-container">
+        
+        <!-- LEFT PANEL: SITE & CLIMATE -->
+        <div class="panel">
+            <div>
+                <div class="section-header">
+                    <span>Global Sites Atlas (15)</span>
+                </div>
+                <div class="map-wrapper">
+                    <canvas id="mapCanvas"></canvas>
+                </div>
+                <select id="siteSelect" class="site-select" onchange="onSiteChange(this.value)"></select>
+            </div>
+
+            <div class="divider"></div>
+
+            <div>
+                <div class="section-header">
+                    <span>Atmospheric & Physical Parameters</span>
+                </div>
+
+                <div class="control-group" style="margin-bottom: 8px;">
+                    <div class="control-label">
+                        <span>Seasonal Month</span>
+                        <span class="val" id="monthVal">JAN (Freeze)</span>
+                    </div>
+                    <input type="range" id="monthSlider" min="1" max="12" step="1" value="1" oninput="onMonthChange()">
+                </div>
+
+                <div class="control-group" style="margin-bottom: 8px;">
+                    <div class="control-label">
+                        <span>Ambient Temp (T)</span>
+                        <span class="val" id="tempVal">-8.6 °C</span>
+                    </div>
+                    <input type="range" id="tempSlider" min="-30" max="25" step="0.5" value="-8.6" oninput="onParamChange()">
+                </div>
+
+                <div class="control-group" style="margin-bottom: 8px;">
+                    <div class="control-label">
+                        <span>Relative Humidity (RH)</span>
+                        <span class="val" id="humidityVal">28 %</span>
+                    </div>
+                    <input type="range" id="humiditySlider" min="10" max="95" step="1" value="28" oninput="onParamChange()">
+                </div>
+
+                <div class="control-group" style="margin-bottom: 8px;">
+                    <div class="control-label">
+                        <span>Pipe Head (Δh)</span>
+                        <span class="val" id="headVal">180 m</span>
+                    </div>
+                    <input type="range" id="headSlider" min="30" max="400" step="5" value="180" oninput="onParamChange()">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Wind Velocity (v)</span>
+                        <span class="val" id="windVal">14 km/h</span>
+                    </div>
+                    <input type="range" id="windSlider" min="2" max="60" step="1" value="14" oninput="onParamChange()">
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div>
+                <div class="section-header">
+                    <span>Nozzle Architecture & Geometry</span>
+                </div>
+
+                <div class="control-group" style="margin-bottom: 8px;">
+                    <div class="control-label"><span>Pipe Array Config</span></div>
+                    <select id="pipeConfigSelect" class="site-select" onchange="onParamChange()">
+                        <option value="single">Single Central Pylon</option>
+                        <option value="dual">Dual Asymmetric Pylons</option>
+                        <option value="triple">Triple Triangular Array</option>
+                        <option value="spiral">Spiral Helix Tower</option>
+                    </select>
+                </div>
+
+                <div class="control-group" style="margin-bottom: 8px;">
+                    <div class="control-label">
+                        <span>Pipe Heights Offset (P1/P2/P3)</span>
+                        <span class="val" id="pipeHeightVal">1.0 / 0.7 / 0.5</span>
+                    </div>
+                    <input type="range" id="pipeHeightSlider" min="0.3" max="1.5" step="0.05" value="1.0" oninput="onParamChange()">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Pipe Spiral / Twist Angle</span>
+                        <span class="val" id="twistVal">45°</span>
+                    </div>
+                    <input type="range" id="twistSlider" min="0" max="360" step="5" value="45" oninput="onParamChange()">
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div>
+                <div class="section-header">
+                    <span>Microclimate Profile</span>
+                </div>
+                <table class="data-table">
+                    <tr><td>Site Name</td><td class="val" id="mSiteName">Leh, Ladakh</td></tr>
+                    <tr><td>Elevation</td><td class="val" id="mElevation">3,500 m</td></tr>
+                    <tr><td>Topography Type</td><td class="val" id="mTopo">Plateau Valley</td></tr>
+                    <tr><td>Aquifer Intake</td><td class="val" id="mSubStrata">Glacial Melt Stream</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- CENTER VIEWPORT -->
+        <div class="viewport-container">
+            <div class="phase-indicator" id="phaseIndicatorBadge">PHASE: FREEZING ACCUMULATION</div>
+            <div class="viewport-tools">
+                <button class="btn-mini" onclick="saveStupaImage()" style="background:#00aaff; color:#000000; font-weight:700;">SAVE</button>
+                <button class="btn-mini" onclick="zoomIn()">+</button>
+                <button class="btn-mini" onclick="zoomOut()">-</button>
+                <button class="btn-mini" id="rotBtn" onclick="toggleRotation()">ROT: ON</button>
+                <button class="btn-mini" onclick="resetView()">RESET</button>
+            </div>
+
+            <div class="viewport-status" id="viewportTag">
+                PREDICTED FORM: 1. HIGH-PLATEAU CRYSTALLINE SPIRE<br>
+                TERRAIN: PLATEAU VALLEY | DYNAMICS: 100% FREEZING
+            </div>
+
+            <canvas id="simCanvas"></canvas>
+        </div>
+
+        <!-- RIGHT PANEL: HARVESTING & GEOMETRY -->
+        <div class="panel right-panel">
+            <div>
+                <div class="section-header">
+                    <span>Water Yield</span>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-title">Harvestable Meltwater Yield</div>
+                    <div class="metric-val" id="hWaterVal">1,842,000 L</div>
+                    <div style="font-size: 9.5px; font-weight: 300; margin-top: 2px;" id="hWaterM3">1,842 m³ equivalent</div>
+                </div>
+
+                <div class="metric-card" style="margin-top: 8px;">
+                    <div class="metric-title">Capture Efficiency</div>
+                    <div class="metric-val" id="hEfficiencyVal">88.4 %</div>
+                    <div style="font-size: 9.5px; font-weight: 300; margin-top: 2px;">Sprayed vs Stored Ice</div>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div>
+                <div class="section-header">
+                    <span>Stupa Geometry</span>
+                </div>
+
+                <table class="data-table">
+                    <tr><td>Stupa Height (H)</td><td class="val" id="mHeight">24.2 m</td></tr>
+                    <tr><td>Base Diameter (D)</td><td class="val" id="mDiameter">38.6 m</td></tr>
+                    <tr><td>Aspect Ratio (H/R)</td><td class="val" id="mAspect">1.25</td></tr>
+                    <tr><td>Stored Ice Mass</td><td class="val" id="mIceMass">2,085 Tons</td></tr>
+                    <tr><td>Surface Area</td><td class="val" id="mSurfaceArea">1,420 m²</td></tr>
+                </table>
+            </div>
+
+            <div class="divider"></div>
+
+            <div>
+                <div class="section-header">
+                    <span>Morphological & Phase Analysis</span>
+                </div>
+                <div class="formula-box" id="morphologyDescBox">
+                    MORPHOLOGY ID #1: High-Plateau Crystalline Spire.<br>
+                    State: Freezing Accumulation (Sub-zero laminar accretion).
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // 15 GLOBAL SITES ATLAS DATASET
+        const SITES = [
+            { id: 'leh', name: '1. Leh, Ladakh (India)', lat: 34.15, lon: 77.57, elev: 3500, head: 180, wind: 14, hum: 28, solar: 6.2, topo: 'Plateau Valley', monthlyTemps: [-8.6, -5.8, -0.3, 5.3, 9.8, 13.7, 17.4, 16.8, 12.9, 6.4, 0.3, -5.1] },
+            { id: 'zermatt', name: '2. Zermatt (Swiss Alps)', lat: 45.97, lon: 7.74, elev: 2100, head: 210, wind: 18, hum: 45, solar: 5.1, topo: 'Alpine Jagged Peaks', monthlyTemps: [-4.8, -4.6, -2.0, 1.7, 4.8, 10.4, 13.5, 13.3, 9.6, 4.5, -0.9, -3.5] },
+            { id: 'huaraz', name: '3. Huaraz (Cordillera Blanca)', lat: -9.52, lon: -77.52, elev: 3050, head: 140, wind: 10, hum: 52, solar: 6.8, topo: 'Glacial Moraine', monthlyTemps: [1.2, 1.0, 1.1, 1.5, 1.8, 2.2, 2.5, 2.8, 2.4, 1.9, 1.5, 1.3] },
+            { id: 'reykjavik', name: '4. Reykjavik (Iceland)', lat: 64.14, lon: -21.94, elev: 120, head: 90, wind: 28, hum: 75, solar: 3.2, topo: 'Volcanic Ridge Basin', monthlyTemps: [-0.5, -0.4, 0.5, 2.9, 6.3, 9.5, 11.2, 10.6, 7.7, 4.1, 1.1, -0.2] },
+            { id: 'almaty', name: '5. Almaty (Tian Shan)', lat: 43.22, lon: 76.85, elev: 2300, head: 160, wind: 12, hum: 38, solar: 5.8, topo: 'Steep Foothill Ridge', monthlyTemps: [-7.2, -5.5, 0.2, 7.5, 12.8, 17.2, 20.1, 19.4, 14.2, 7.1, 0.1, -4.8] },
+            { id: 'banff', name: '6. Banff (Canadian Rockies)', lat: 51.17, lon: -115.57, elev: 1400, head: 240, wind: 16, hum: 50, solar: 4.5, topo: 'U-Shaped Valley', monthlyTemps: [-10.4, -7.5, -2.2, 3.1, 8.2, 12.5, 16.1, 15.4, 10.2, 3.8, -4.1, -9.2] },
+            { id: 'everest', name: '7. Namche Bazaar, Everest', lat: 27.80, lon: 86.71, elev: 3440, head: 320, wind: 24, hum: 32, solar: 6.6, topo: 'High Himalayan Gorge', monthlyTemps: [-11.2, -9.5, -4.2, 2.1, 6.2, 10.1, 11.8, 11.2, 7.8, 2.1, -4.2, -9.8] },
+            { id: 'nagano', name: '8. Nagano (Japan Alps)', lat: 36.65, lon: 138.18, elev: 1100, head: 130, wind: 15, hum: 68, solar: 4.2, topo: 'Snow Basin Terraces', monthlyTemps: [-3.0, -2.1, 1.5, 8.2, 13.5, 17.8, 21.5, 20.8, 15.5, 9.0, 3.2, -1.2] },
+            { id: 'gulmarg', name: '9. Gulmarg (Kashmir)', lat: 34.05, lon: 74.38, elev: 2650, head: 200, wind: 16, hum: 55, solar: 5.4, topo: 'Alpine Bowl Meadow', monthlyTemps: [-6.5, -5.0, 0.2, 6.1, 11.2, 15.5, 18.2, 17.5, 13.1, 7.0, 0.5, -4.8] },
+            { id: 'cortina', name: '10. Cortina d’Ampezzo', lat: 46.54, lon: 12.13, elev: 1224, head: 175, wind: 12, hum: 58, solar: 4.8, topo: 'Limestone Pinnacle Base', monthlyTemps: [-4.2, -2.5, 1.8, 6.2, 11.1, 15.0, 17.2, 16.5, 12.1, 6.8, 0.5, -3.2] },
+            { id: 'bariloche', name: '11. Bariloche (Patagonia)', lat: -41.13, lon: -71.31, elev: 850, head: 130, wind: 22, hum: 55, solar: 5.2, topo: 'Lacustrine Moraine', monthlyTemps: [17.5, 17.1, 14.0, 9.5, 5.5, 2.8, 2.1, 3.5, 6.8, 10.5, 13.8, 16.2] },
+            { id: 'ushuaia', name: '12. Ushuaia (Tierra del Fuego)', lat: -54.80, lon: -68.30, elev: 30, head: 80, wind: 34, hum: 78, solar: 3.1, topo: 'Subpolar Coastal Ridge', monthlyTemps: [9.5, 9.2, 7.8, 5.2, 2.8, 0.5, -0.2, 0.8, 2.5, 5.1, 7.2, 8.8] },
+            { id: 'gulmit', name: '13. Gulmit (Hunza Valley)', lat: 36.42, lon: 74.88, elev: 2400, head: 250, wind: 15, hum: 35, solar: 6.1, topo: 'Arid Gorge Terrace', monthlyTemps: [-5.2, -3.8, 2.1, 9.2, 14.5, 19.2, 22.1, 21.2, 16.1, 9.0, 1.8, -3.5] },
+            { id: 'kenya', name: '14. Mount Kenya', lat: -0.15, lon: 37.30, elev: 4300, head: 350, wind: 18, hum: 40, solar: 7.2, topo: 'Equatorial Volcanic Cone', monthlyTemps: [2.1, 2.5, 2.8, 3.0, 2.5, 1.8, 1.2, 1.5, 2.0, 2.6, 2.4, 2.2] },
+            { id: 'quito', name: '15. Quito (Andes Highlands)', lat: -0.18, lon: -78.46, elev: 2850, head: 190, wind: 11, hum: 70, solar: 5.9, topo: 'Highland Inter-Andean Valley', monthlyTemps: [13.2, 13.5, 13.4, 13.6, 13.5, 13.2, 13.1, 13.4, 13.6, 13.5, 13.4, 13.3] }
+        ];
+
+        let currentSite = SITES[0];
+        let mapCanvas, mapCtx;
+
+        function initMap() {
+            mapCanvas = document.getElementById('mapCanvas');
+            if (!mapCanvas) return;
+            mapCtx = mapCanvas.getContext('2d');
+            if (!mapCtx) return;
+
+            const rect = mapCanvas.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
+
+            mapCanvas.width = rect.width * window.devicePixelRatio;
+            mapCanvas.height = rect.height * window.devicePixelRatio;
+            mapCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            drawMap();
+
+            mapCanvas.addEventListener('click', (e) => {
+                const r = mapCanvas.getBoundingClientRect();
+                const clickX = e.clientX - r.left;
+                const clickY = e.clientY - r.top;
+
+                const points = getOffsetMapPoints(r.width, r.height);
+                let minDist = 9999;
+                let sel = null;
+
+                points.forEach(pt => {
+                    const d = Math.hypot(pt.renderX - clickX, pt.renderY - clickY);
+                    if (d < minDist) {
+                        minDist = d;
+                        sel = pt.site;
+                    }
+                });
+
+                if (sel && minDist < 35) {
+                    const siteSelEl = document.getElementById('siteSelect');
+                    if (siteSelEl) siteSelEl.value = sel.id;
+                    onSiteChange(sel.id);
+                }
+            });
+        }
+
+        function latLonToMap(lat, lon, width, height) {
+            // Robinson / Winkel-tripel oval projection mapping matching standard world atlases
+            const x = (lon + 180) * (width / 360);
+            // Invert latitude so North is top, adjusted with standard equirectangular scale for landmass proportions
+            const y = (90 - lat) * (height / 180);
+            return { x, y };
+        }
+
+        function getOffsetMapPoints(w, h) {
+            // Map lat/lon coordinates accurately onto the canvas
+            const basePts = SITES.map(s => {
+                // Precision coordinate adjustments for precise landmass positioning
+                let atlasLon = s.lon;
+                let atlasLat = s.lat;
+                
+                // Specific landmass corrections to ensure pins sit precisely on land
+                if (s.id === 'reykjavik') { atlasLon = -21.9; atlasLat = 64.1; }
+                else if (s.id === 'ushuaia') { atlasLon = -68.3; atlasLat = -54.8; }
+                else if (s.id === 'bariloche') { atlasLon = -71.3; atlasLat = -41.1; }
+                else if (s.id === 'kenya') { atlasLon = 37.3; atlasLat = -0.15; }
+                else if (s.id === 'everest') { atlasLon = 86.7; atlasLat = 27.8; }
+                else if (s.id === 'leh') { atlasLon = 77.5; atlasLat = 34.1; }
+
+                const p = latLonToMap(atlasLat, atlasLon, w, h);
+                return { site: s, origX: p.x, origY: p.y, renderX: p.x, renderY: p.y };
+            });
+
+            // De-clustering collision detection to spread out pins in dense regions (e.g. European Alps)
+            for (let i = 0; i < basePts.length; i++) {
+                for (let j = i + 1; j < basePts.length; j++) {
+                    const dx = basePts[j].renderX - basePts[i].renderX;
+                    const dy = basePts[j].renderY - basePts[i].renderY;
+                    const dist = Math.hypot(dx, dy);
+                    const minDist = 14;
+                    if (dist < minDist && dist > 0) {
+                        const overlap = (minDist - dist) / 2;
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+                        basePts[i].renderX -= nx * overlap;
+                        basePts[i].renderY -= ny * overlap;
+                        basePts[j].renderX += nx * overlap;
+                        basePts[j].renderY += ny * overlap;
+                    }
+                }
+            }
+            return basePts;
+        }
+
+        function drawMap() {
+            if (!mapCanvas || !mapCtx) return;
+            const r = mapCanvas.getBoundingClientRect();
+            const w = r.width;
+            const h = r.height;
+            if (w === 0 || h === 0) return;
+
+            mapCtx.clearRect(0, 0, w, h);
+            mapCtx.fillStyle = '#0a0a0c';
+            mapCtx.fillRect(0, 0, w, h);
+
+            // Subtle Blueprint Grid
+            mapCtx.strokeStyle = '#1a1a20';
+            mapCtx.lineWidth = 0.5;
+            for (let x = 0; x < w; x += 20) {
+                mapCtx.beginPath(); mapCtx.moveTo(x, 0); mapCtx.lineTo(x, h); mapCtx.stroke();
+            }
+            for (let y = 0; y < h; y += 20) {
+                mapCtx.beginPath(); mapCtx.moveTo(0, y); mapCtx.lineTo(w, y); mapCtx.stroke();
+            }
+
+            // Equator / Meridian Lines
+            mapCtx.strokeStyle = '#2a2a32';
+            mapCtx.setLineDash([2, 2]);
+            mapCtx.beginPath(); mapCtx.moveTo(0, h / 2); mapCtx.lineTo(w, h / 2); mapCtx.stroke();
+            mapCtx.beginPath(); mapCtx.moveTo(w / 2, 0); mapCtx.lineTo(w / 2, h); mapCtx.stroke();
+            mapCtx.setLineDash([]);
+
+            // Detailed Robinson-Projection World Atlas Outlines (Matching Reference Image)
+            mapCtx.strokeStyle = '#ffffff';
+            mapCtx.lineWidth = 1.2;
+            mapCtx.fillStyle = '#16161c';
+
+            // Outer curved map boundary frame (matching world atlas ellipse/oval aesthetic)
+            mapCtx.beginPath();
+            mapCtx.moveTo(w * 0.1, h * 0.08);
+            mapCtx.lineTo(w * 0.9, h * 0.08);
+            mapCtx.quadraticCurveTo(w * 0.98, h * 0.08, w * 0.98, h * 0.5);
+            mapCtx.quadraticCurveTo(w * 0.98, h * 0.92, w * 0.9, h * 0.92);
+            mapCtx.lineTo(w * 0.1, h * 0.92);
+            mapCtx.quadraticCurveTo(w * 0.02, h * 0.92, w * 0.02, h * 0.5);
+            mapCtx.quadraticCurveTo(w * 0.02, h * 0.08, w * 0.1, h * 0.08);
+            mapCtx.closePath();
+            mapCtx.stroke();
+
+            const continents = [
+                // North America (Alaska, Canada, USA, Mexico, Central America)
+                [[0.06,0.18],[0.10,0.13],[0.18,0.11],[0.28,0.13],[0.36,0.18],[0.34,0.30],[0.27,0.42],[0.23,0.47],[0.16,0.36],[0.10,0.25]],
+                // Greenland
+                [[0.33,0.09],[0.41,0.08],[0.39,0.18],[0.31,0.16]],
+                // South America
+                [[0.26,0.50],[0.33,0.48],[0.39,0.56],[0.36,0.84],[0.28,0.79],[0.24,0.62]],
+                // Europe (Scandinavia, Western/Eastern Europe, UK)
+                [[0.46,0.14],[0.55,0.12],[0.59,0.21],[0.52,0.31],[0.44,0.29],[0.42,0.18]],
+                // Africa
+                [[0.43,0.37],[0.56,0.35],[0.64,0.45],[0.62,0.71],[0.51,0.82],[0.42,0.70],[0.40,0.51]],
+                // Asia (Siberia, China, India, SE Asia, Middle East)
+                [[0.55,0.11],[0.77,0.09],[0.92,0.14],[0.94,0.35],[0.85,0.53],[0.72,0.47],[0.64,0.34],[0.57,0.26]],
+                // Japan
+                [[0.87,0.27],[0.92,0.25],[0.90,0.36],[0.85,0.33]],
+                // Australia / Oceania
+                [[0.75,0.61],[0.90,0.59],[0.91,0.81],[0.77,0.79],[0.73,0.69]],
+                // Madagascar
+                [[0.63,0.61],[0.67,0.59],[0.65,0.74],[0.61,0.70]],
+                // Antarctica
+                [[0.20,0.88],[0.80,0.88],[0.85,0.94],[0.15,0.94]]
+            ];
+
+            continents.forEach(poly => {
+                mapCtx.beginPath();
+                mapCtx.moveTo(poly[0][0] * w, poly[0][1] * h);
+                for (let i = 1; i < poly.length; i++) {
+                    mapCtx.lineTo(poly[i][0] * w, poly[i][1] * h);
+                }
+                mapCtx.closePath();
+                mapCtx.fill();
+                mapCtx.stroke();
+            });
+
+            // Map Pins & De-cluttered Leader Lines
+            const points = getOffsetMapPoints(w, h);
+            points.forEach((pt, idx) => {
+                const isSel = (pt.site.id === currentSite.id);
+
+                if (Math.hypot(pt.renderX - pt.origX, pt.renderY - pt.origY) > 2) {
+                    mapCtx.strokeStyle = '#666666';
+                    mapCtx.lineWidth = 0.5;
+                    mapCtx.setLineDash([1, 1]);
+                    mapCtx.beginPath();
+                    mapCtx.moveTo(pt.origX, pt.origY);
+                    mapCtx.lineTo(pt.renderX, pt.renderY);
+                    mapCtx.stroke();
+                    mapCtx.setLineDash([]);
+                }
+
+                if (isSel) {
+                    mapCtx.strokeStyle = '#ffffff';
+                    mapCtx.lineWidth = 1.5;
+                    mapCtx.beginPath();
+                    mapCtx.arc(pt.renderX, pt.renderY, 7, 0, Math.PI * 2);
+                    mapCtx.stroke();
+                }
+
+                mapCtx.fillStyle = isSel ? '#ffffff' : '#0a0a0c';
+                mapCtx.strokeStyle = '#ffffff';
+                mapCtx.lineWidth = 1;
+                mapCtx.beginPath();
+                mapCtx.arc(pt.renderX, pt.renderY, 3, 0, Math.PI * 2);
+                mapCtx.fill();
+                mapCtx.stroke();
+
+                mapCtx.fillStyle = isSel ? '#ffffff' : '#aaaaaa';
+                mapCtx.font = `${isSel ? 'bold ' : ''}8.5px "Helvetica Neue", sans-serif`;
+                mapCtx.fillText(idx + 1, pt.renderX + 5, pt.renderY + 3);
+            });
+        }
+
+        function populateSiteDropdown() {
+            const sel = document.getElementById('siteSelect');
+            if (!sel) return;
+            sel.innerHTML = '';
+            SITES.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.name;
+                sel.appendChild(opt);
+            });
+        }
+
+        function onSiteChange(siteId) {
+            currentSite = SITES.find(s => s.id === siteId) || SITES[0];
+            const headSl = document.getElementById('headSlider');
+            const windSl = document.getElementById('windSlider');
+            if (headSl) headSl.value = currentSite.head;
+            if (windSl) windSl.value = currentSite.wind;
+            onMonthChange();
+            drawMap();
+            buildSiteTerrain();
+        }
+
+        function onMonthChange() {
+            const mSlider = document.getElementById('monthSlider');
+            if (!mSlider) return;
+            const mIdx = parseInt(mSlider.value) - 1;
+            const newTemp = currentSite.monthlyTemps[mIdx];
+            const tSlider = document.getElementById('tempSlider');
+            if (tSlider) tSlider.value = newTemp;
+            recalculate();
+        }
+
+        function onParamChange() {
+            recalculate();
+        }
+
+        // THREE.JS SIMULATION ENGINE
+        let scene, camera, renderer, controls;
+        let terrainPoints, subSurfaceStreamPoints, stupaGroup, centralPipeGroup, particlesMesh, fogParticlesMesh;
+        let particlePositions, particleVelocities;
+        let fogPositions, fogVelocities;
+        let subStreamPositions, subStreamVelocities;
+        const PARTICLE_COUNT = 350;
+        const FOG_COUNT = 250;
+        const SUB_STREAM_COUNT = 180;
+        let autoRotate = true;
+
+        function init3D() {
+            const container = document.querySelector('.viewport-container');
+            const simCanvas = document.getElementById('simCanvas');
+            if (!container || !simCanvas) return;
+
+            const width = container.clientWidth || 600;
+            const height = container.clientHeight || 500;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0c);
+
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 2000);
+            camera.position.set(75, 40, 95);
+
+            renderer = new THREE.WebGLRenderer({ canvas: simCanvas, antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 8, 0);
+            controls.autoRotate = autoRotate;
+            controls.autoRotateSpeed = 1.0;
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.65);
+            dirLight.position.set(60, 120, 60);
+            scene.add(dirLight);
+
+            stupaGroup = new THREE.Group();
+            scene.add(stupaGroup);
+
+            centralPipeGroup = new THREE.Group();
+            scene.add(centralPipeGroup);
+
+            initParticles();
+            initSubSurfaceHydrology();
+            buildSiteTerrain();
+            recalculate();
+
+            const observer = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    const w = entry.contentRect.width;
+                    const h = entry.contentRect.height;
+                    if (w > 0 && h > 0 && camera && renderer) {
+                        camera.aspect = w / h;
+                        camera.updateProjectionMatrix();
+                        renderer.setSize(w, h);
+                    }
+                }
+            });
+            observer.observe(container);
+
+            animate();
+        }
+
+        function initParticles() {
+            const geometry = new THREE.BufferGeometry();
+            particlePositions = new Float32Array(PARTICLE_COUNT * 3);
+            particleVelocities = [];
+
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                particlePositions[i * 3] = 0;
+                particlePositions[i * 3 + 1] = -100;
+                particlePositions[i * 3 + 2] = 0;
+                particleVelocities.push({ x: 0, y: 0, z: 0, life: 0 });
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 16; canvas.height = 16;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#0088ff';
+            ctx.beginPath(); ctx.arc(8, 8, 6, 0, Math.PI * 2); ctx.fill();
+            const texture = new THREE.CanvasTexture(canvas);
+
+            const material = new THREE.PointsMaterial({
+                color: 0x00aaff,
+                size: 0.35,
+                map: texture,
+                transparent: true,
+                alphaTest: 0.1
+            });
+            particlesMesh = new THREE.Points(geometry, material);
+            scene.add(particlesMesh);
+
+            const fogGeo = new THREE.BufferGeometry();
+            fogPositions = new Float32Array(FOG_COUNT * 3);
+            fogVelocities = [];
+
+            for (let i = 0; i < FOG_COUNT; i++) {
+                fogPositions[i * 3] = (Math.random() - 0.5) * 60;
+                fogPositions[i * 3 + 1] = Math.random() * 30 - 2;
+                fogPositions[i * 3 + 2] = (Math.random() - 0.5) * 60;
+                fogVelocities.push({
+                    vx: (Math.random() - 0.5) * 0.05,
+                    vy: Math.random() * 0.03 + 0.01,
+                    vz: (Math.random() - 0.5) * 0.05
+                });
+            }
+            fogGeo.setAttribute('position', new THREE.BufferAttribute(fogPositions, 3));
+            const fogMat = new THREE.PointsMaterial({
+                color: 0xd0e8ff,
+                size: 0.6,
+                transparent: true,
+                opacity: 0.12
+            });
+            fogParticlesMesh = new THREE.Points(fogGeo, fogMat);
+            scene.add(fogParticlesMesh);
+        }
+
+        function initSubSurfaceHydrology() {
+            const geo = new THREE.BufferGeometry();
+            subStreamPositions = new Float32Array(SUB_STREAM_COUNT * 3);
+            subStreamVelocities = [];
+
+            for (let i = 0; i < SUB_STREAM_COUNT; i++) {
+                subStreamPositions[i * 3] = (Math.random() - 0.5) * 80;
+                subStreamPositions[i * 3 + 1] = -5.5;
+                subStreamPositions[i * 3 + 2] = (Math.random() - 0.5) * 12;
+                subStreamVelocities.push({ speed: 0.15 + Math.random() * 0.1 });
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(subStreamPositions, 3));
+            const mat = new THREE.PointsMaterial({ color: 0x0088ff, size: 0.35, transparent: true, opacity: 0.7 });
+            subSurfaceStreamPoints = new THREE.Points(geo, mat);
+            scene.add(subSurfaceStreamPoints);
+        }
+
+        function buildSiteTerrain() {
+            if (terrainPoints) scene.remove(terrainPoints);
+
+            // Substantially expanded scale (width) and increased grid density for high-definition topography
+            const gridRes = 180;
+            const size = 320; // Increased width and lateral reach
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(gridRes * gridRes * 3);
+
+            let idx = 0;
+            for (let i = 0; i < gridRes; i++) {
+                for (let j = 0; j < gridRes; j++) {
+                    const u = (i / (gridRes - 1)) - 0.5;
+                    const v = (j / (gridRes - 1)) - 0.5;
+                    const x = u * size;
+                    const z = v * size;
+
+                    let y = 0;
+                    const sId = currentSite.id;
+
+                    // Site-specific high-precision topographic mathematical profiles
+                    if (sId === 'leh') {
+                        y = Math.pow(Math.abs(u * 1.8), 2.2) * 16 - 6;
+                    } else if (sId === 'zermatt') {
+                        y = (Math.sin(x * 0.1) * Math.cos(z * 0.1) * 20) + (Math.sin(x * 0.25) * 6) - 4;
+                    } else if (sId === 'huaraz') {
+                        y = Math.abs(Math.sin(x * 0.08)) * 22 * Math.cos(z * 0.07) - 3;
+                    } else if (sId === 'reykjavik') {
+                        y = (Math.sin(x * 0.12) * Math.sin(z * 0.12) * 10) + (Math.cos(x * 0.04) * 5) - 5;
+                    } else if (sId === 'almaty') {
+                        y = Math.pow(Math.abs(u * 2.2), 1.5) * 24 * (1 - Math.abs(v) * 0.3) - 2;
+                    } else if (sId === 'banff') {
+                        y = Math.pow(Math.abs(u * 2.0), 2.5) * 28 - 5;
+                    } else if (sId === 'everest' || sId === 'gulmit') {
+                        y = Math.pow(Math.abs(v * 2.5), 3.2) * 32 - 6;
+                    } else if (sId === 'nagano') {
+                        y = (Math.cos(x * 0.08) * 8) + (Math.sin(z * 0.08) * 8) - 3;
+                    } else if (sId === 'gulmarg') {
+                        y = (Math.hypot(x * 0.04, z * 0.04) * 6) - 4;
+                    } else if (sId === 'cortina') {
+                        y = (Math.abs(Math.sin(x * 0.15)) * 16) + (Math.cos(z * 0.08) * 7) - 4;
+                    } else if (sId === 'bariloche' || sId === 'ushuaia') {
+                        y = Math.sin(x * 0.06) * Math.cos(z * 0.06) * 12 - 4;
+                    } else if (sId === 'kenya') {
+                        const r = Math.hypot(x, z);
+                        y = Math.max(-6, 30 - r * 0.3);
+                    } else if (sId === 'quito') {
+                        y = (Math.sin(x * 0.05) * 6) + (Math.cos(z * 0.05) * 6) - 3;
+                    } else {
+                        y = Math.sin(x * 0.07) * 5 + Math.cos(z * 0.07) * 5 - 4;
+                    }
+
+                    pos[idx * 3] = x;
+                    pos[idx * 3 + 1] = y - 4;
+                    pos[idx * 3 + 2] = z;
+                    idx++;
+                }
+            }
+
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.42, transparent: true, opacity: 0.75 });
+            terrainPoints = new THREE.Points(geo, mat);
+            scene.add(terrainPoints);
+        }
+
+        function build3DPylonPipes(stupaHeight, pipeConfig, pipeHeightOffset) {
+            while (centralPipeGroup.children.length > 0) {
+                centralPipeGroup.remove(centralPipeGroup.children[0]);
+            }
+
+            const pipeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
+            const pipeRadius = 0.22;
+            const h = stupaHeight * 1.15;
+
+            if (pipeConfig === 'single') {
+                const geo = new THREE.CylinderGeometry(pipeRadius, pipeRadius, h, 12);
+                geo.translate(0, h / 2 - 4, 0);
+                centralPipeGroup.add(new THREE.Mesh(geo, pipeMat));
+            } else if (pipeConfig === 'dual') {
+                const h1 = h * pipeHeightOffset;
+                const h2 = h * 0.75;
+                const geo1 = new THREE.CylinderGeometry(pipeRadius, pipeRadius, h1, 12);
+                const geo2 = new THREE.CylinderGeometry(pipeRadius, pipeRadius, h2, 12);
+                geo1.translate(-2, h1 / 2 - 4, 0);
+                geo2.translate(2, h2 / 2 - 4, 0);
+                centralPipeGroup.add(new THREE.Mesh(geo1, pipeMat));
+                centralPipeGroup.add(new THREE.Mesh(geo2, pipeMat));
+            } else if (pipeConfig === 'triple' || pipeConfig === 'spiral') {
+                for (let i = 0; i < 3; i++) {
+                    const angle = (i * Math.PI * 2) / 3;
+                    const r = 2.5;
+                    const hSub = h * (1 - i * 0.18 * pipeHeightOffset);
+                    const geo = new THREE.CylinderGeometry(pipeRadius, pipeRadius, hSub, 12);
+                    geo.translate(Math.cos(angle) * r, hSub / 2 - 4, Math.sin(angle) * r);
+                    centralPipeGroup.add(new THREE.Mesh(geo, pipeMat));
+                }
+            }
+        }
+
+        function build3DStupaMesh(height, radius, isMelting, RH, windSpeed, pipeConfig, twistDeg, siteIdx) {
+            while (stupaGroup.children.length > 0) {
+                stupaGroup.remove(stupaGroup.children[0]);
+            }
+
+            const opacityVal = isMelting ? 0.85 : 0.65;
+            const iceMat = new THREE.MeshPhongMaterial({
+                color: isMelting ? 0x0088ff : 0x00aaff,
+                transparent: true,
+                opacity: opacityVal,
+                shininess: RH > 70 ? 40 : 120,
+                flatShading: RH > 60
+            });
+
+            const wireMat = new THREE.MeshBasicMaterial({
+                color: isMelting ? 0xcc0000 : 0xffffff,
+                wireframe: true,
+                transparent: true,
+                opacity: isMelting ? 0.35 : 0.20
+            });
+
+            const heightOffsetEl = document.getElementById('pipeHeightSlider');
+            const pipeHeightOffset = heightOffsetEl ? parseFloat(heightOffsetEl.value) : 1.0;
+
+            const radialSegs = 72;
+            const heightSegs = 64;
+            const stupaGeo = new THREE.CylinderGeometry(radius * 0.05, radius, height, radialSegs, heightSegs);
+            stupaGeo.translate(0, height / 2 - 4, 0);
+
+            const posAttr = stupaGeo.attributes.position;
+            const tempEl = document.getElementById('tempSlider');
+            const headEl = document.getElementById('headSlider');
+            const T = tempEl ? parseFloat(tempEl.value) : -8.6;
+            const dh = headEl ? parseFloat(headEl.value) : 180;
+            const twistRad = (twistDeg * Math.PI) / 180;
+
+            for (let i = 0; i < posAttr.count; i++) {
+                let x = posAttr.getX(i);
+                let y = posAttr.getY(i);
+                let z = posAttr.getZ(i);
+
+                // Clamp normY strictly to [0.001, 1.0] to prevent zero-power or negative-power NaNs
+                const rawNormY = (y + 4) / Math.max(0.1, height);
+                const normY = Math.min(1.0, Math.max(0.001, rawNormY));
+                
+                // Twist angle applied dynamically based on nozzle settings
+                const angle = Math.atan2(z, x) + normY * twistRad * (pipeHeightOffset * 0.8);
+
+                if (isMelting) {
+                    const meltIntensity = Math.max(0.1, T > 0 ? T : 1.5);
+                    const solarAspect = Math.cos(angle - Math.PI / 4) * 0.35 * meltIntensity;
+                    const gravitySlump = Math.pow(Math.max(0.001, 1 - normY), 0.5) * (1.2 + meltIntensity * 0.1);
+                    const waterCarving = Math.sin(angle * 6 + normY * 8) * 0.15 * meltIntensity;
+                    const headEffect = Math.pow(Math.max(0.01, dh / 200), 0.4);
+                    const windDrift = (windSpeed * 0.04) * Math.pow(normY, 1.2);
+
+                    let rFactor = (gravitySlump + solarAspect + waterCarving) * headEffect;
+                    rFactor *= Math.max(0.2, 1 - normY * 0.35 * meltIntensity);
+
+                    x = x * rFactor + windDrift;
+                    z = z * rFactor;
+                    y -= normY * meltIntensity * 0.18;
+                } else {
+                    const headPressureNorm = Math.max(0.01, dh / 180);
+                    const parabolicSpray = Math.pow(normY, 0.25) * Math.pow(Math.max(0.001, 1 - normY), 0.55) * (2.1 / Math.sqrt(headPressureNorm));
+                    const basalSpreadSkirt = Math.pow(Math.max(0.001, 1 - normY), 2.5) * (1.6 / headPressureNorm);
+                    const windDrift = (windSpeed * 0.09) * Math.pow(normY, 1.6);
+                    const windwardFlattening = Math.cos(angle) > 0 
+                        ? (1 - (windSpeed * 0.015) * Math.cos(angle)) 
+                        : (1 + (windSpeed * 0.022) * Math.abs(Math.cos(angle)));
+
+                    // PIPE ARRAY CONFIGURATION SHAPE MODULATION
+                    let pipeModulation = 1.0;
+                    if (pipeConfig === 'dual') {
+                        // Creates dual asymmetric ice lobes
+                        const lobeFactor = Math.cos(angle * 2) * 0.45 * pipeHeightOffset;
+                        pipeModulation += lobeFactor;
+                    } else if (pipeConfig === 'triple') {
+                        // Creates 3-pointed triangular star-like geometry
+                        const lobeFactor = Math.sin(angle * 3) * 0.52 * pipeHeightOffset;
+                        pipeModulation += lobeFactor;
+                    } else if (pipeConfig === 'spiral') {
+                        // Creates helical spiral ridge fluting
+                        const spiralRibs = Math.sin(angle * 4 + normY * 12 * (twistDeg / 45)) * 0.42 * pipeHeightOffset;
+                        pipeModulation += spiralRibs;
+                    }
+
+                    // Height offset influence on upper/lower stupa bulge
+                    const heightOffsetBulge = 1.0 + (pipeHeightOffset - 1.0) * Math.sin(normY * Math.PI) * 0.35;
+
+                    let siteHarmonic = 1.0;
+                    if (siteIdx === 1) siteHarmonic += Math.sin(angle * 12) * 0.18 * (1 - normY);
+                    else if (siteIdx === 2) siteHarmonic += Math.abs(Math.cos(angle * 3)) * 0.32 * Math.sin(normY * Math.PI);
+                    else if (siteIdx === 3) siteHarmonic += Math.sin(normY * Math.PI * 7) * 0.22 * Math.cos(angle * 4);
+                    else if (siteIdx === 5) siteHarmonic += Math.floor(normY * 6) % 2 === 0 ? 0.28 : -0.15;
+                    else siteHarmonic += Math.sin(angle * 5) * 0.22;
+
+                    const humidityRime = (RH / 50) * Math.sin(angle * 14 + normY * 20) * 0.12;
+                    const radiusScale = (parabolicSpray + basalSpreadSkirt + 0.25) * siteHarmonic * pipeModulation * heightOffsetBulge * (1 + humidityRime) * windwardFlattening;
+
+                    x = x * radiusScale + windDrift;
+                    z = z * radiusScale;
+                }
+
+                // Fallback check to prevent any NaN from propagating to Three.js
+                posAttr.setXYZ(
+                    i, 
+                    Number.isNaN(x) ? 0 : x, 
+                    Number.isNaN(y) ? 0 : y, 
+                    Number.isNaN(z) ? 0 : z
+                );
+            }
+
+            stupaGeo.computeVertexNormals();
+            stupaGeo.computeBoundingSphere();
+            stupaGroup.add(new THREE.Mesh(stupaGeo, iceMat));
+            stupaGroup.add(new THREE.Mesh(stupaGeo, wireMat));
+        }
+
+        function updateParticleSystem(stupaHeight, isMelting, windSpeed) {
+            if (!particlesMesh || !fogParticlesMesh || !subSurfaceStreamPoints) return;
+
+            const pipeTopY = stupaHeight * 1.15 - 4;
+            const positions = particlesMesh.geometry.attributes.position.array;
+
+            if (isMelting) {
+                for (let i = 0; i < PARTICLE_COUNT; i++) {
+                    positions[i * 3 + 1] = -500;
+                    particleVelocities[i].life = 0;
+                }
+            } else {
+                for (let i = 0; i < PARTICLE_COUNT; i++) {
+                    let p = particleVelocities[i];
+
+                    if (p.life <= 0) {
+                        p.life = 60 + Math.random() * 40;
+                        positions[i * 3] = (Math.random() - 0.5) * 0.5;
+                        positions[i * 3 + 1] = pipeTopY;
+                        positions[i * 3 + 2] = (Math.random() - 0.5) * 0.5;
+
+                        const angle = Math.random() * Math.PI * 2;
+                        const spread = 0.15 + Math.random() * 0.2;
+                        p.x = Math.cos(angle) * spread + (windSpeed * 0.02);
+                        p.y = 0.4 + Math.random() * 0.3;
+                        p.z = Math.sin(angle) * spread;
+                    } else {
+                        positions[i * 3] += p.x;
+                        positions[i * 3 + 1] += p.y;
+                        positions[i * 3 + 2] += p.z;
+
+                        p.y -= 0.015;
+                        p.life--;
+
+                        if (positions[i * 3 + 1] < -4) {
+                            p.life = 0;
+                        }
+                    }
+                }
+            }
+            particlesMesh.geometry.attributes.position.needsUpdate = true;
+
+            const humEl = document.getElementById('humiditySlider');
+            const RH = humEl ? parseFloat(humEl.value) : 28;
+            const fogPos = fogParticlesMesh.geometry.attributes.position.array;
+            fogParticlesMesh.material.opacity = (RH / 100) * 0.15;
+
+            for (let i = 0; i < FOG_COUNT; i++) {
+                fogPos[i * 3] += fogVelocities[i].vx + (windSpeed * 0.005);
+                fogPos[i * 3 + 1] += fogVelocities[i].vy;
+                fogPos[i * 3 + 2] += fogVelocities[i].vz;
+
+                if (fogPos[i * 3 + 1] > 35 || Math.abs(fogPos[i * 3]) > 70) {
+                    fogPos[i * 3] = (Math.random() - 0.5) * 40;
+                    fogPos[i * 3 + 1] = -2;
+                    fogPos[i * 3 + 2] = (Math.random() - 0.5) * 40;
+                }
+            }
+            fogParticlesMesh.geometry.attributes.position.needsUpdate = true;
+
+            const subPos = subSurfaceStreamPoints.geometry.attributes.position.array;
+            for (let i = 0; i < SUB_STREAM_COUNT; i++) {
+                subPos[i * 3] += subStreamVelocities[i].speed;
+                if (subPos[i * 3] > 2) {
+                    subPos[i * 3] = -70;
+                }
+            }
+            subSurfaceStreamPoints.geometry.attributes.position.needsUpdate = true;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (controls) controls.update();
+
+            const tempEl = document.getElementById('tempSlider');
+            const monthEl = document.getElementById('monthSlider');
+            const headEl = document.getElementById('headSlider');
+            const windEl = document.getElementById('windSlider');
+
+            if (!tempEl || !monthEl || !headEl || !windEl) return;
+
+            const T = parseFloat(tempEl.value);
+            const month = parseInt(monthEl.value);
+            const dh = parseFloat(headEl.value);
+            const v = parseFloat(windEl.value);
+
+            const isMeltingPhase = (T > 0 || month >= 4 && month <= 9);
+            const fountainHeight = (dh * 0.11) * (1 - v * 0.006);
+            let stupaHeight = Math.max(4, fountainHeight * (1 - Math.max(0, T) * 0.075));
+
+            if (isMeltingPhase) {
+                const meltDeg = Math.max(1, T > 0 ? T : 2);
+                stupaHeight *= Math.max(0.15, 1 - meltDeg * 0.09);
+            }
+
+            updateParticleSystem(stupaHeight, isMeltingPhase, v);
+
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        function recalculate() {
+            const mSlider = document.getElementById('monthSlider');
+            const tSlider = document.getElementById('tempSlider');
+            const hSlider = document.getElementById('humiditySlider');
+            const headSlider = document.getElementById('headSlider');
+            const wSlider = document.getElementById('windSlider');
+            const configSelect = document.getElementById('pipeConfigSelect');
+            const heightSlider = document.getElementById('pipeHeightSlider');
+            const twistSlider = document.getElementById('twistSlider');
+
+            if (!mSlider || !tSlider || !hSlider || !headSlider || !wSlider) return;
+
+            const month = parseInt(mSlider.value);
+            const T = parseFloat(tSlider.value);
+            const RH = parseFloat(hSlider.value);
+            const dh = parseFloat(headSlider.value);
+            const v = parseFloat(wSlider.value);
+
+            const pipeConfig = configSelect ? configSelect.value : 'single';
+            const pipeHeightOffset = heightSlider ? parseFloat(heightSlider.value) : 1.0;
+            const twistDeg = twistSlider ? parseFloat(twistSlider.value) : 45;
+
+            const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+            const isMelting = (T > 0 || month >= 4 && month <= 9);
+
+            const monthValEl = document.getElementById('monthVal');
+            if (monthValEl) monthValEl.textContent = `${months[month - 1]} (${isMelting ? 'Melt' : 'Freeze'})`;
+            
+            const tempValEl = document.getElementById('tempVal');
+            if (tempValEl) tempValEl.textContent = `${T.toFixed(1)} °C`;
+            
+            const humValEl = document.getElementById('humidityVal');
+            if (humValEl) humValEl.textContent = `${RH.toFixed(0)} %`;
+            
+            const headValEl = document.getElementById('headVal');
+            if (headValEl) headValEl.textContent = `${dh.toFixed(0)} m`;
+            
+            const windValEl = document.getElementById('windVal');
+            if (windValEl) windValEl.textContent = `${v.toFixed(0)} km/h`;
+
+            const siteIdx = SITES.findIndex(s => s.id === currentSite.id) + 1;
+            const siteNameEl = document.getElementById('mSiteName');
+            if (siteNameEl) siteNameEl.textContent = currentSite.name;
+
+            const elevEl = document.getElementById('mElevation');
+            if (elevEl) elevEl.textContent = `${currentSite.elev.toLocaleString()} m`;
+
+            const topoEl = document.getElementById('mTopo');
+            if (topoEl) topoEl.textContent = currentSite.topo;
+
+            const fountainHeight = (dh * 0.11) * (1 - v * 0.006);
+            let stupaHeight = Math.max(4, fountainHeight * (1 - Math.max(0, T) * 0.075));
+            let baseRadius = stupaHeight * 0.78;
+
+            if (isMelting) {
+                const meltDeg = Math.max(1, T > 0 ? T : 2);
+                stupaHeight *= Math.max(0.15, 1 - meltDeg * 0.09);
+                baseRadius *= Math.max(0.2, 1 - meltDeg * 0.06);
+            }
+
+            const volume = (1 / 3) * Math.PI * Math.pow(baseRadius, 2) * stupaHeight;
+            const iceDensity = 0.917;
+            const iceMassTons = Math.round((volume * iceDensity) * 0.85);
+
+            let efficiency = Math.max(25, Math.min(96, 92 - (v * 0.85) - (T > 0 ? T * 4 : 0) + (RH * 0.12)));
+            const waterYieldLiters = Math.round(iceMassTons * 1000 * (efficiency / 100));
+            const waterYieldM3 = Math.round(waterYieldLiters / 1000);
+
+            const yieldValEl = document.getElementById('hWaterVal');
+            if (yieldValEl) yieldValEl.textContent = `${waterYieldLiters.toLocaleString()} L`;
+
+            const yieldM3El = document.getElementById('hWaterM3');
+            if (yieldM3El) yieldM3El.textContent = `${waterYieldM3.toLocaleString()} m³ equivalent`;
+
+            const effValEl = document.getElementById('hEfficiencyVal');
+            if (effValEl) effValEl.textContent = `${efficiency.toFixed(1)} %`;
+
+            const heightEl = document.getElementById('mHeight');
+            if (heightEl) heightEl.textContent = `${stupaHeight.toFixed(1)} m`;
+
+            const diamEl = document.getElementById('mDiameter');
+            if (diamEl) diamEl.textContent = `${(baseRadius * 2).toFixed(1)} m`;
+
+            const aspectEl = document.getElementById('mAspect');
+            if (aspectEl) aspectEl.textContent = (stupaHeight / baseRadius).toFixed(2);
+
+            const massEl = document.getElementById('mIceMass');
+            if (massEl) massEl.textContent = `${iceMassTons.toLocaleString()} Tons`;
+
+            const slant = Math.hypot(baseRadius, stupaHeight);
+            const surfArea = Math.round(Math.PI * baseRadius * slant);
+            const surfEl = document.getElementById('mSurfaceArea');
+            if (surfEl) surfEl.textContent = `${surfArea.toLocaleString()} m²`;
+
+            const tagEl = document.getElementById('viewportTag');
+            if (tagEl) {
+                tagEl.innerHTML = `PREDICTED FORM: ${siteIdx}. ${currentSite.topo.toUpperCase()} FORMATION<br>` +
+                    `TERRAIN: ${currentSite.topo} | DYNAMICS: ${isMelting ? 'SPRING ACCELERATED MELT' : '100% FREEZING'}`;
+            }
+
+            const descBox = document.getElementById('morphologyDescBox');
+            if (descBox) {
+                descBox.innerHTML = `MORPHOLOGY ID #${siteIdx}: ${currentSite.name}.<br>` +
+                    `State: ${isMelting ? 'Active Ablation / Thermal Slumping' : 'Sub-zero Laminar Accretion'}.<br>` +
+                    `Hydraulic Head: ${dh}m | Config: ${pipeConfig.toUpperCase()}`;
+            }
+
+            const badge = document.getElementById('phaseIndicatorBadge');
+            if (badge) {
+                if (isMelting) {
+                    badge.textContent = 'PHASE: SPRING ACCELERATED MELT';
+                    badge.style.backgroundColor = '#cc0000';
+                    badge.style.color = '#ffffff';
+                } else {
+                    badge.textContent = 'PHASE: FREEZING ACCUMULATION';
+                    badge.style.backgroundColor = '#ffffff';
+                    badge.style.color = '#000000';
+                }
+            }
+
+            build3DPylonPipes(stupaHeight, pipeConfig, pipeHeightOffset);
+            build3DStupaMesh(stupaHeight, baseRadius, isMelting, RH, v, pipeConfig, twistDeg, siteIdx);
+        }
+
+        function zoomIn() {
+            if (camera) camera.position.multiplyScalar(0.85);
+        }
+
+        function zoomOut() {
+            if (camera) camera.position.multiplyScalar(1.15);
+        }
+
+        function toggleRotation() {
+            autoRotate = !autoRotate;
+            if (controls) controls.autoRotate = autoRotate;
+            const btn = document.getElementById('rotBtn');
+            if (btn) btn.textContent = `ROT: ${autoRotate ? 'ON' : 'OFF'}`;
+        }
+
+        function resetView() {
+            if (camera && controls) {
+                camera.position.set(70, 45, 90);
+                controls.target.set(0, 10, 0);
+                controls.update();
+            }
+        }
+
+        function saveStupaImage() {
+            if (!renderer || !scene || !camera) return;
+
+            // Temporarily hide background elements (terrain points, sub-surface stream, fog) for clean render
+            if (terrainPoints) terrainPoints.visible = false;
+            if (subSurfaceStreamPoints) subSurfaceStreamPoints.visible = false;
+            if (fogParticlesMesh) fogParticlesMesh.visible = false;
+
+            renderer.render(scene, camera);
+            const dataURL = renderer.domElement.toDataURL('image/png');
+
+            // Restore visibility
+            if (terrainPoints) terrainPoints.visible = true;
+            if (subSurfaceStreamPoints) subSurfaceStreamPoints.visible = true;
+            if (fogParticlesMesh) fogParticlesMesh.visible = true;
+
+            const siteNameClean = currentSite.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            const siteIdx = SITES.findIndex(s => s.id === currentSite.id) + 1;
+            const filename = `ice_stupa_${siteIdx}_${siteNameClean}_${currentSite.topo.toLowerCase().replace(/[^a-z0-9]/g, '_')}.png`;
+
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = dataURL;
+            link.click();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            populateSiteDropdown();
+            initMap();
+            init3D();
+        });
+    </script>
+</body>
+</html>i
